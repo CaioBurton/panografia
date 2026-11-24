@@ -1,4 +1,4 @@
-# Interface gráfica de Visão Computacional
+# visao-computacional-2026
 
 Aplicação em CustomTkinter sobre a biblioteca `vc` (filtros, geometria, câmera, etc.).
 
