@@ -1,4 +1,4 @@
-# visao-computacional-2026
+# panografia
 
 Aplicação em CustomTkinter sobre a biblioteca `vc` (filtros, geometria, câmera, etc.).
 
