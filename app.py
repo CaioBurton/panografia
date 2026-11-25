@@ -78,7 +78,7 @@ class App(ctk.CTk):
         BlendingTab(self.paginas["Blending (Pirâmides)"]).pack(fill="both", expand=True)
         PanografiaTab(self.paginas["Panografia"]).pack(fill="both", expand=True)
 
-        self.mostrar_aba("Imagem")
+        self.mostrar_aba("Panografia")
         self.bind("<Control-o>", lambda _e: self.load_image())
         self.bind("<Control-s>", lambda _e: self.save_image())
         self.bind("<Control-r>", lambda _e: self.restore_image())
