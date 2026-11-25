@@ -4,6 +4,7 @@ import math
 import customtkinter as ctk
 import numpy as np
 
+import ui
 from vc import formacao_imagem as fi
 
 PERSPECTIVA, ORTOGRAFICA = "Perspectiva", "Ortográfica escalada"
@@ -26,8 +27,8 @@ class FormacaoImagemTab(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
         self._build_painel()
 
-        self.image_label = ctk.CTkLabel(self, text="")
-        self.image_label.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        self.image_label = ctk.CTkLabel(self, text="", fg_color=ui.FUNDO, corner_radius=0)
+        self.image_label.grid(row=0, column=1, sticky="nsew")
         self.image_label.bind("<Configure>", lambda _e: self._exibir())
         self._arrasto = None   # (x, y) do último ponto do arrasto com o mouse
         self._esc = 1.0        # fator de exibição (pixels da tela / pixels do sensor)
@@ -36,29 +37,17 @@ class FormacaoImagemTab(ctk.CTkFrame):
                        ("<ButtonRelease-1>", self._mouse_fim), ("<ButtonRelease-3>", self._mouse_fim),
                        ("<MouseWheel>", self._mouse_roda)):
             self.image_label.bind(ev, fn)
-        self.status = ctk.CTkLabel(self, text="", anchor="w")
-        self.status.grid(row=1, column=0, columnspan=2, sticky="ew", padx=12, pady=(0, 8))
+        rodape, self.status = ui.barra_status(self)
+        rodape.grid(row=1, column=0, columnspan=2, sticky="ew")
 
         self._trocar_modelo()
 
     # ---------- interface ----------
-    def _secao(self, titulo, parent=None):
-        ctk.CTkLabel(parent or self.painel, text=titulo, anchor="w", text_color="gray").pack(
-            fill="x", padx=10, pady=(14, 2))
-
     def _campo(self, parent, chave, rotulo, valor):
         minimo, maximo = LIMITES[chave]
-        bloco = ctk.CTkFrame(parent, fg_color="transparent")
-        bloco.pack(fill="x", padx=10, pady=2)
-        linha = ctk.CTkFrame(bloco, fg_color="transparent")
-        linha.pack(fill="x")
-        ctk.CTkLabel(linha, text=rotulo, width=90, anchor="w").pack(side="left")
-        var = ctk.StringVar(value=f"{valor:g}")
-        ctk.CTkEntry(linha, textvariable=var).pack(side="left", fill="x", expand=True)
-        slider = ctk.CTkSlider(bloco, from_=minimo, to=maximo, height=14,
-                               command=lambda v: var.set(f"{round(v, 2):g}"))
+        bloco, entry = ui.campo(parent, rotulo, textvariable=(var := ctk.StringVar(value=f"{valor:g}")))
+        slider = ui.slider(bloco, minimo, maximo, comando=lambda v: var.set(f"{round(v, 2):g}"))
         slider.set(valor)
-        slider.pack(fill="x", pady=(2, 0))
 
         def ao_digitar(*_):
             try:
@@ -69,58 +58,60 @@ class FormacaoImagemTab(ctk.CTkFrame):
         var.trace_add("write", ao_digitar)
         self.vars[chave] = var
 
+    def _secao(self, titulo, aberta=True, pai=None):
+        s = ui.Secao(pai or self.painel, titulo, aberta)
+        s.pack(fill="x", pady=4)
+        return s
+
     def _build_painel(self):
-        self.painel = ctk.CTkScrollableFrame(self, width=270, corner_radius=0)
+        self.painel = ctk.CTkScrollableFrame(self, width=300, corner_radius=0, fg_color=ui.PAINEL)
         self.painel.grid(row=0, column=0, sticky="ns")
 
-        self._secao("MODELO DE PROJEÇÃO")
-        self.modelo = ctk.CTkOptionMenu(self.painel, values=[PERSPECTIVA, ORTOGRAFICA],
-                                        command=lambda _m: self._trocar_modelo())
-        self.modelo.pack(fill="x", padx=10, pady=3)
+        ui.rotulo_secao(self.painel, "Modelo de projeção", pady=(4, 4))
+        self.modelo = ui.segmentado(self.painel, [PERSPECTIVA, ORTOGRAFICA], lambda _m: self._trocar_modelo())
+        self.modelo.set(PERSPECTIVA)
+        self.modelo.pack(fill="x", pady=(0, 6))
 
-        self._secao("RESOLUÇÃO DO SENSOR")
-        self.resolucao = ctk.CTkOptionMenu(self.painel, values=list(fi.RESOLUCOES),
-                                           command=lambda _m: self._atualizar())
-        self.resolucao.pack(fill="x", padx=10, pady=3)
+        ui.rotulo_secao(self.painel, "Resolução do sensor", pady=(8, 4))
+        self.resolucao = ui.menu(self.painel, list(fi.RESOLUCOES), lambda _m: self._atualizar())
+        self.resolucao.pack(fill="x", pady=(0, 6))
 
         # Parâmetros específicos de cada modelo (apenas um fica visível por vez)
         self.area_modelo = ctk.CTkFrame(self.painel, fg_color="transparent")
         self.area_modelo.pack(fill="x")
 
-        self.frame_persp = ctk.CTkFrame(self.area_modelo, fg_color="transparent")
-        self._secao("PARÂMETROS INTRÍNSECOS", self.frame_persp)
+        self.frame_persp = ui.Secao(self.area_modelo, "Parâmetros intrínsecos")
+        corpo = self.frame_persp.corpo
         p = fi.PADRAO_PERSPECTIVA
         for chave, rot in (("fx", "fx"), ("fy", "fy"), ("cx", "cx"), ("cy", "cy"), ("skew", "skew")):
-            self._campo(self.frame_persp, chave, rot, p[chave])
-        self.igualar = ctk.CTkCheckBox(self.frame_persp, text="Manter fx = fy", command=self._ao_igualar)
+            self._campo(corpo, chave, rot, p[chave])
+        self.igualar = ctk.CTkCheckBox(corpo, text="Manter fx = fy", command=self._ao_igualar,
+                                       text_color=ui.TEXTO, fg_color=ui.ACENTO, hover_color=ui.ACENTO_H)
         self.igualar.select()
-        self.igualar.pack(anchor="w", padx=10, pady=6)
-        ctk.CTkLabel(self.frame_persp, text="Matriz K", anchor="w", text_color="gray").pack(
-            fill="x", padx=10, pady=(6, 0))
-        self.k_label = ctk.CTkLabel(self.frame_persp, text="", justify="left", anchor="w",
-                                    font=ctk.CTkFont(family="Consolas", size=12))
-        self.k_label.pack(fill="x", padx=10)
+        self.igualar.pack(anchor="w", pady=8)
+        ui.rotulo_secao(corpo, "Matriz K", padx=0, pady=(4, 2))
+        self.k_label = ctk.CTkLabel(corpo, text="", justify="left", anchor="w", fg_color=ui.PAINEL,
+                                    corner_radius=8, text_color=ui.TEXTO, font=ui.fonte_mono(12))
+        self.k_label.pack(fill="x", ipadx=8, ipady=6)
 
-        self.frame_orto = ctk.CTkFrame(self.area_modelo, fg_color="transparent")
-        self._secao("PARÂMETROS DA ORTOGRÁFICA", self.frame_orto)
-        self._campo(self.frame_orto, "escala", "Escala", fi.PADRAO_ESCALA)
+        self.frame_orto = ui.Secao(self.area_modelo, "Parâmetros da ortográfica")
+        self._campo(self.frame_orto.corpo, "escala", "Escala", fi.PADRAO_ESCALA)
 
-        self._secao("TRANSLAÇÃO (extrínsecos)")
         e = fi.PADRAO_EXTRINSECOS
+        corpo = self._secao("Translação (extrínsecos)").corpo
         for chave, rot in (("tx", "tx"), ("ty", "ty"), ("tz", "tz")):
-            self._campo(self.painel, chave, rot, e[chave])
-        self._secao("ROTAÇÃO em graus (extrínsecos)")
+            self._campo(corpo, chave, rot, e[chave])
+        corpo = self._secao("Rotação em graus (extrínsecos)").corpo
         for chave, rot in (("rx", "Rot. X (°)"), ("ry", "Rot. Y (°)"), ("rz", "Rot. Z (°)")):
-            self._campo(self.painel, chave, rot, e[chave])
+            self._campo(corpo, chave, rot, e[chave])
 
-        ctk.CTkButton(self.painel, text="Restaurar valores iniciais", fg_color="gray30",
-                      hover_color="gray40", command=self.restaurar).pack(fill="x", padx=10, pady=(14, 14))
+        ui.botao(self.painel, "Restaurar valores iniciais", self.restaurar).pack(fill="x", pady=(10, 14))
 
     # ---------- eventos ----------
     def _trocar_modelo(self):
         self.frame_persp.pack_forget()
         self.frame_orto.pack_forget()
-        (self.frame_persp if self.modelo.get() == PERSPECTIVA else self.frame_orto).pack(fill="x")
+        (self.frame_persp if self.modelo.get() == PERSPECTIVA else self.frame_orto).pack(fill="x", pady=4)
         self._atualizar()
 
     def _ao_igualar(self):
@@ -246,7 +237,7 @@ class FormacaoImagemTab(ctk.CTkFrame):
             return
         cw, ch = max(self.image_label.winfo_width(), 1), max(self.image_label.winfo_height(), 1)
         w, h = self._ultima.size
-        esc = self._esc = min(cw / w, ch / h, 1.0)
+        esc = self._esc = min((cw - 40) / w, (ch - 40) / h, 1.0)
         tam = (max(int(w * esc), 1), max(int(h * esc), 1))
         self._ctk_image = ctk.CTkImage(light_image=self._ultima, dark_image=self._ultima, size=tam)
         self.image_label.configure(image=self._ctk_image)
