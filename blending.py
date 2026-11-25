@@ -65,6 +65,6 @@ def main(pasta, saida, niveis):
 
 if __name__ == "__main__":
     base = os.path.dirname(os.path.abspath(__file__))
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(base, "..", "imagens"),
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(base, "imagens"),
          sys.argv[2] if len(sys.argv) > 2 else os.path.join(base, "resultados_blending"),
          int(sys.argv[3]) if len(sys.argv) > 3 else 5)

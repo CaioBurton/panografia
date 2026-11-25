@@ -73,7 +73,7 @@ class FormacaoImagemTab(ctk.CTkFrame):
         self.modelo.pack(fill="x", pady=(0, 6))
 
         ui.rotulo_secao(self.painel, "Resolução do sensor", pady=(8, 4))
-        self.resolucao = ui.menu(self.painel, list(fi.RESOLUCOES), lambda _m: self._atualizar())
+        self.resolucao = ui.menu(self.painel, list(fi.RESOLUCOES), lambda _m: self._ao_trocar_resolucao())
         self.resolucao.pack(fill="x", pady=(0, 6))
 
         # Parâmetros específicos de cada modelo (apenas um fica visível por vez)
@@ -112,6 +112,15 @@ class FormacaoImagemTab(ctk.CTkFrame):
         self.frame_persp.pack_forget()
         self.frame_orto.pack_forget()
         (self.frame_persp if self.modelo.get() == PERSPECTIVA else self.frame_orto).pack(fill="x", pady=4)
+        self._atualizar()
+
+    def _ao_trocar_resolucao(self):
+        """Move o ponto principal (cx, cy) para o centro do novo sensor."""
+        w, h = fi.RESOLUCOES[self.resolucao.get()]
+        self._atualizando = True
+        self.vars["cx"].set(f"{w / 2:g}")
+        self.vars["cy"].set(f"{h / 2:g}")
+        self._atualizando = False
         self._atualizar()
 
     def _ao_igualar(self):

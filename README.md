@@ -40,7 +40,7 @@ cada alteração; use os campos, os sliders ou o mouse sobre a imagem:
 
 Equações (código em `vc/formacao_imagem.py`): `Xc = R·Xw + t`, `R = Rz·Ry·Rx`;
 perspectiva `x̃ = K·Xc`, `u = x̃₁/x̃₃`, `v = x̃₂/x̃₃`; ortográfica `u = s·Xc + cx`, `v = s·Yc + cy`
-com (cx, cy) no centro do sensor. Na perspectiva, cx e cy não mudam ao trocar a resolução.
+com (cx, cy) no centro do sensor. Na perspectiva, cx e cy vão para o centro do sensor ao trocar a resolução.
 
 ## Atividade 02 - Blending com pirâmides
 

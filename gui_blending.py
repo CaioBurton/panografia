@@ -9,7 +9,9 @@ from PIL import Image, ImageDraw
 import ui
 from vc import piramides
 
-PASTA_IMAGENS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "imagens")
+_BASE = os.path.dirname(os.path.abspath(__file__))
+# Pastas onde as imagens sugeridas são procuradas (as imagens não são versionadas nem entregues no zip).
+PASTAS_IMAGENS = [os.path.join(_BASE, "imagens"), os.path.join(_BASE, "..", "imagens")]
 PADROES = {"a": "512_burt_apple.png", "b": "512_burt_orange.png", "mascara": "512_mask.jpg"}
 ROTULOS = {"a": "Imagem A (onde máscara = 1)", "b": "Imagem B (onde máscara = 0)", "mascara": "Máscara"}
 NOMES_CURTOS = {"a": "Imagem A", "b": "Imagem B", "mascara": "Máscara"}
@@ -92,7 +94,7 @@ class BlendingTab(ctk.CTkFrame):
                 row=0, column=1, rowspan=2, padx=8)
         ctk.CTkLabel(c.corpo, text="A aparece onde a máscara vale 1; B, onde vale 0.", anchor="w", justify="left",
                      wraplength=250, text_color=ui.SUAVE, font=ui.fonte(11)).pack(fill="x", pady=(4, 0))
-        ui.botao(c.corpo, "Usar imagens sugeridas (maçã + laranja)", self.usar_sugeridas).pack(fill="x", pady=(8, 0))
+        ui.botao(c.corpo, "Usar imagens sugeridas (maçã + laranja)", lambda: self.usar_sugeridas(perguntar=True)).pack(fill="x", pady=(8, 0))
 
         c = ui.Secao(p, "2 · Máscara e pirâmide")
         c.pack(fill="x", pady=4)
@@ -132,13 +134,33 @@ class BlendingTab(ctk.CTkFrame):
             if chave == "mascara":
                 self.modo_mascara.set(MASCARA_ARQUIVO)
 
-    def usar_sugeridas(self):
-        for chave, nome in PADROES.items():
-            c = os.path.normpath(os.path.join(PASTA_IMAGENS, nome))
-            self._definir(chave, c if os.path.exists(c) else None)
+    @staticmethod
+    def _achar(pastas):
+        """Devolve {chave: caminho} se alguma das pastas tiver as três imagens sugeridas, senão None."""
+        for pasta in pastas:
+            c = {k: os.path.normpath(os.path.join(pasta, n)) for k, n in PADROES.items()}
+            if all(os.path.exists(v) for v in c.values()):
+                return c
+        return None
+
+    def usar_sugeridas(self, perguntar=False):
+        c = self._achar(PASTAS_IMAGENS)
+        if c is None and perguntar:
+            pasta = filedialog.askdirectory(title="Pasta com 512_burt_apple.png, 512_burt_orange.png e 512_mask.jpg")
+            if pasta:
+                c = self._achar([pasta])
+                if c is None:
+                    messagebox.showwarning("Imagens não encontradas",
+                                           "A pasta escolhida não contém os três arquivos:\n" + "\n".join(PADROES.values()))
+        if c is None:
+            self.image_label.configure(
+                text="Imagens sugeridas não encontradas.\nColoque-as na pasta 'imagens' ao lado do programa,\n"
+                     "ou use 'Escolher' para selecionar A, B e a máscara.")
+            return
+        for chave, caminho in c.items():
+            self._definir(chave, caminho)
         self.modo_mascara.set(MASCARA_ARQUIVO)
-        if all(self.caminhos.values()):
-            self.aplicar()
+        self.aplicar()
 
     # ---------- processamento ----------
     def _mascara(self, shape):
