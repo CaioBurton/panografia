@@ -6,11 +6,13 @@ import customtkinter as ctk
 import numpy as np
 from PIL import Image, ImageDraw
 
+import ui
 from vc import piramides
 
 PASTA_IMAGENS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "imagens")
 PADROES = {"a": "512_burt_apple.png", "b": "512_burt_orange.png", "mascara": "512_mask.jpg"}
 ROTULOS = {"a": "Imagem A (onde máscara = 1)", "b": "Imagem B (onde máscara = 0)", "mascara": "Máscara"}
+NOMES_CURTOS = {"a": "Imagem A", "b": "Imagem B", "mascara": "Máscara"}
 TIPOS = [("Imagens", "*.png *.jpg *.jpeg *.bmp *.tif *.tiff")]
 VISOES = ["Comparação", "Blending", "Justaposição", "Zoom da emenda", "Pirâmides"]
 MAX_NIVEIS = 9   # 512 -> 4 pixels no último nível
@@ -50,57 +52,62 @@ class BlendingTab(ctk.CTkFrame):
         self._atual = None
 
         self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
         self._build_painel()
-        self.image_label = ctk.CTkLabel(self, text="Escolha as imagens e clique em Aplicar blending")
-        self.image_label.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        self.image_label.bind("<Configure>", lambda _e: self._exibir())
-        self.status = ctk.CTkLabel(self, text="", anchor="w")
-        self.status.grid(row=1, column=0, columnspan=2, sticky="ew", padx=12, pady=(0, 8))
+        self._build_area_imagem()
         self.usar_sugeridas()
 
     # ---------- interface ----------
+    def _build_area_imagem(self):
+        barra = ctk.CTkFrame(self, fg_color=ui.FUNDO, corner_radius=0)
+        barra.grid(row=0, column=1, sticky="ew")
+        self.visao = ui.segmentado(barra, VISOES, lambda _v: self._exibir())
+        self.visao.set(VISOES[0])
+        self.visao.pack(side="left", padx=16, pady=10)
+        ui.botao(barra, "Salvar visualização", self.salvar, width=160).pack(side="right", padx=16, pady=10)
+
+        self.image_label = ctk.CTkLabel(self, text="Escolha as imagens e clique em Aplicar blending",
+                                        fg_color=ui.FUNDO, text_color=ui.SUAVE, font=ui.fonte(15), corner_radius=0)
+        self.image_label.grid(row=1, column=1, sticky="nsew")
+        self.image_label.bind("<Configure>", lambda _e: self._exibir())
+        rodape, self.status = ui.barra_status(self)
+        rodape.grid(row=2, column=0, columnspan=2, sticky="ew")
+
     def _build_painel(self):
-        p = ctk.CTkScrollableFrame(self, width=270, corner_radius=0)
-        p.grid(row=0, column=0, sticky="ns")
+        p = ctk.CTkScrollableFrame(self, width=300, corner_radius=0, fg_color=ui.PAINEL)
+        p.grid(row=0, column=0, rowspan=2, sticky="ns")
 
-        def secao(t):
-            ctk.CTkLabel(p, text=t, anchor="w", text_color="gray").pack(fill="x", padx=10, pady=(14, 2))
-
-        secao("IMAGENS")
+        c = ui.Secao(p, "1 · Imagens")
+        c.pack(fill="x", pady=4)
         for chave in PADROES:
-            ctk.CTkButton(p, text=f"Escolher {ROTULOS[chave]}",
-                          command=lambda c=chave: self.escolher(c)).pack(fill="x", padx=10, pady=(3, 0))
-            lbl = ctk.CTkLabel(p, text="-", anchor="w", text_color="gray", font=ctk.CTkFont(size=11))
-            lbl.pack(fill="x", padx=12)
+            linha = ctk.CTkFrame(c.corpo, fg_color=ui.PAINEL, corner_radius=10)
+            linha.pack(fill="x", pady=3)
+            linha.grid_columnconfigure(0, weight=1)
+            ctk.CTkLabel(linha, text=NOMES_CURTOS[chave], anchor="w", text_color=ui.TEXTO,
+                         font=ui.fonte(12, "bold")).grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 0))
+            lbl = ctk.CTkLabel(linha, text="-", anchor="w", text_color=ui.SUAVE, font=ui.fonte(11))
+            lbl.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
             self.rotulos_arquivo[chave] = lbl
-        ctk.CTkButton(p, text="Usar imagens sugeridas (maçã + laranja)", fg_color="gray30", hover_color="gray40",
-                      command=self.usar_sugeridas).pack(fill="x", padx=10, pady=(8, 3))
+            ui.botao(linha, "Escolher", lambda c=chave: self.escolher(c), height=30, width=84).grid(
+                row=0, column=1, rowspan=2, padx=8)
+        ctk.CTkLabel(c.corpo, text="A aparece onde a máscara vale 1; B, onde vale 0.", anchor="w", justify="left",
+                     wraplength=250, text_color=ui.SUAVE, font=ui.fonte(11)).pack(fill="x", pady=(4, 0))
+        ui.botao(c.corpo, "Usar imagens sugeridas (maçã + laranja)", self.usar_sugeridas).pack(fill="x", pady=(8, 0))
 
-        secao("MÁSCARA")
-        self.modo_mascara = ctk.CTkOptionMenu(p, values=[MASCARA_ARQUIVO, MASCARA_ESQ, MASCARA_DIR])
-        self.modo_mascara.pack(fill="x", padx=10, pady=3)
-
-        secao("PIRÂMIDE")
-        linha = ctk.CTkFrame(p, fg_color="transparent")
-        linha.pack(fill="x", padx=10, pady=2)
-        ctk.CTkLabel(linha, text="Níveis", width=90, anchor="w").pack(side="left")
-        self.niveis = ctk.CTkEntry(linha)
+        c = ui.Secao(p, "2 · Máscara e pirâmide")
+        c.pack(fill="x", pady=4)
+        ui.rotulo_secao(c.corpo, "Origem da máscara", padx=0, pady=(0, 2))
+        self.modo_mascara = ui.menu(c.corpo, [MASCARA_ARQUIVO, MASCARA_ESQ, MASCARA_DIR])
+        self.modo_mascara.pack(fill="x")
+        bloco, self.niveis = ui.campo(c.corpo, "Níveis da pirâmide", largura=60)
         self.niveis.insert(0, "5")
-        self.niveis.pack(side="left", fill="x", expand=True)
         self.niveis.bind("<KeyRelease>", self._texto_niveis)
-        self.slider_niveis = ctk.CTkSlider(p, from_=1, to=MAX_NIVEIS, number_of_steps=MAX_NIVEIS - 1, height=14,
-                                           command=self._slider_niveis)
+        self.slider_niveis = ui.slider(bloco, 1, MAX_NIVEIS, MAX_NIVEIS - 1, self._slider_niveis)
         self.slider_niveis.set(5)
-        self.slider_niveis.pack(fill="x", padx=10, pady=(2, 0))
         # o blending só é refeito ao soltar o slider (durante o arrasto só o número muda)
         self.slider_niveis.bind("<ButtonRelease-1>", lambda _e: self.aplicar() if self.resultados else None, add="+")
-        ctk.CTkButton(p, text="Aplicar blending", command=self.aplicar).pack(fill="x", padx=10, pady=(10, 3))
 
-        secao("VISUALIZAÇÃO")
-        self.visao = ctk.CTkOptionMenu(p, values=VISOES, command=lambda _v: self._exibir())
-        self.visao.pack(fill="x", padx=10, pady=3)
-        ctk.CTkButton(p, text="Salvar visualização", command=self.salvar).pack(fill="x", padx=10, pady=(10, 3))
+        ui.botao(p, "Aplicar blending", self.aplicar, "primario", height=44).pack(fill="x", pady=(10, 14))
 
     # ---------- níveis ----------
     def _slider_niveis(self, v):
@@ -206,7 +213,7 @@ class BlendingTab(ctk.CTkFrame):
         if img is None:
             return
         cw, ch = max(self.image_label.winfo_width(), 1), max(self.image_label.winfo_height(), 1)
-        esc = min(cw / img.width, ch / img.height)
+        esc = min((cw - 40) / img.width, (ch - 40) / img.height)
         tam = (max(1, int(img.width * esc)), max(1, int(img.height * esc)))
         self._atual = img
         self._ctk_image = ctk.CTkImage(light_image=img, dark_image=img, size=tam)
