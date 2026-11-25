@@ -12,8 +12,8 @@ python app.py
 Testes: `python -m unittest discover -s tests`
 
 No Windows com Anaconda, rode os comandos no *Anaconda Prompt* (o `python` do PATH pode apontar para o
-atalho da Microsoft Store). Abas da interface: **Imagem**, **Funções**, **Formação de Imagem** (Atividade 01)
-e **Blending (Pirâmides)** (Atividade 02).
+atalho da Microsoft Store). Abas da interface: **Imagem**, **Funções**, **Formação de Imagem** (Atividade 01),
+**Blending (Pirâmides)** (Atividade 02) e **Panografia** (Atividade 03).
 
 ## Aba "Imagem"
 
@@ -56,3 +56,20 @@ Na interface, a aba **Blending (Pirâmides)** carrega por padrão a maçã, a la
 ou uma máscara automática (metade esquerda/direita), e o número de níveis (campo ou **slider** de 1 a 9; o
 blending é refeito ao soltar o slider; o máximo real depende do tamanho da imagem A). As visões são: comparação,
 blending, justaposição, zoom da emenda e pirâmides (salvar com "Salvar visualização").
+
+## Atividade 03 - Panografia (costura por translação)
+
+`vc/panografia.py`: cantos de **Harris** (`detectar_cantos`), descritores por retalho normalizado
+(`descritores`), correspondência por correlação mútua com teste da razão (`correspondencias`),
+**RANSAC** para o modelo `p1 = p2 + t` (`estimar_translacao`: uma correspondência já define `t`, então todas as
+hipóteses são testadas; `t` é refinado pela média dos inliers) e `mosaico` (blending linear com pesos que
+decaem para a borda, ou média simples, na sobreposição). `justaposicao` põe as imagens lado a lado sem alinhar.
+
+`python costura.py [img1] [img2] [pasta_saida]` usa `images/img1` e `images/img2` por padrão (`.jpg` ou
+`.png`), imprime `t = (tx, ty)` e o número de inliers e gera em `resultados_panografia/` o `mosaico.jpg`, a
+justaposição, as correspondências (verde = inlier, vermelho = outlier) e a comparação. Nas imagens
+fornecidas: `t ≈ (361.9, −0.4)` com 136 inliers de 144 correspondências.
+
+Na interface, a aba **Panografia** carrega `images/img1` e `images/img2` por padrão e permite escolher outras
+imagens, ajustar o máximo de cantos, o NCC mínimo, o limiar do RANSAC e o modo do mosaico. As visões são:
+comparação, mosaico, justaposição e correspondências.
